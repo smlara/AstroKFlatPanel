@@ -17,7 +17,7 @@ Panel de luz plana de calibración DIY totalmente open-source para astrofotograf
 - **Control manual de brillo** mediante encoder rotatorio (pasos de 1 % o 10 %)
 - **Encendido/apagado** mediante pulsación larga en el botón del encoder
 - **Pantalla OLED** (128×32) que muestra porcentaje de brillo, estado del panel y paso activo
-- **PWM de alta frecuencia** (~62.5 kHz, Timer1) — elimina el parpadeo visible en exposiciones largas
+- **PWM a ~15.6 kHz** (Timer1, Fast PWM 10-bit) — invisible al ojo y a la cámara en exposiciones de flat, con 1024 niveles de regulación para un control suave a brillo bajo
 - **Firmware versión 1.1**
 
 ---
@@ -27,8 +27,8 @@ Panel de luz plana de calibración DIY totalmente open-source para astrofotograf
 | Componente | Descripción |
 |------------|-------------|
 | Arduino Nano | Microcontrolador ATmega328P |
-| Panel LED | Panel plano electroluminiscente o LED |
-| Módulo XY-MOS | Driver MOSFET con gate driver integrado |
+| Tira LED | **5 V**, alimentada por USB (longitud ajustada al presupuesto de corriente USB) |
+| Módulo XY-MOS | Driver MOSFET (entrada por optoacoplador) |
 | OLED SSD1306 | Pantalla I2C 128×32 px |
 | Encoder rotatorio | EC11 o compatible, con pulsador |
 
@@ -41,8 +41,8 @@ Para el cableado completo, consulta [docs/WIRING_ES.md](docs/WIRING_ES.md) y el 
 | Cant. | Componente | Especificaciones |
 |:-----:|------------|-----------------|
 | 1 | Arduino Nano | ATmega328P, USB-C |
-| 1 | Módulo XY-MOS | Driver MOSFET con gate driver integrado |
-| 1 | Tira de LED | 12 V (adaptar al tamaño del panel) |
+| 1 | Módulo XY-MOS | Driver MOSFET (entrada por optoacoplador) |
+| 1 | Tira de LED | **5 V**, longitud dimensionada al presupuesto USB (~300 mA/m para 60 LED/m) |
 | 1 | Pantalla OLED | SSD1306, 128×32 px, I2C, 3.3 V |
 | 1 | Encoder rotatorio | EC11 o compatible, con pulsador |
 | 1 | Condensador electrolítico | 10 µF, para la línea RST (ASCOM) |
@@ -103,7 +103,6 @@ pio run -e nanoatmega328 -t upload
 - `adafruit/Adafruit SSD1306 ^2.5.9`
 - `adafruit/Adafruit GFX Library ^1.11.9`
 - `Wire`
-- `EEPROM`
 
 ---
 

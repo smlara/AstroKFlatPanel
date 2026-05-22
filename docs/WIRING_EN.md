@@ -13,7 +13,7 @@
 | D2          | CLK         | Rotary encoder          | INPUT_PULLUP, polling-based detection |
 | D3          | DT          | Rotary encoder          | INPUT_PULLUP                       |
 | D4          | SW (button) | Rotary encoder          | INPUT_PULLUP, software debounce    |
-| D9          | PWM Signal  | XY-MOS module (LED strip) | PWM ~62.5 kHz via Timer1 (OC1A) |
+| D9          | PWM Signal  | XY-MOS module (LED strip) | PWM ~15.6 kHz via Timer1 (OC1A) |
 | A4 (SDA)    | SDA         | OLED SSD1306 (I2C)      | I2C bus                            |
 | A5 (SCL)    | SCL         | OLED SSD1306 (I2C)      | I2C bus                            |
 | 3V3         | VCC         | OLED + Encoder          | 3.3 V power supply                 |
@@ -26,7 +26,15 @@
 
 ### 1. LED Panel — XY-MOS module
 
-The XY-MOS is a complete MOSFET driver module chosen over a bare MOSFET for its integrated gate driver circuit. This ensures fast, clean switching transitions at the high PWM frequency (~62.5 kHz, Timer1) used by the firmware, minimising heat dissipation and delivering smooth, linear dimming across the full 0–100 % range without external gate resistors or protection components.
+The XY-MOS is a MOSFET driver module chosen over a bare MOSFET for its built-in switching circuitry. Many of these modules use an optocoupler on the input, so the firmware drives PWM at **~15.6 kHz** (Timer1, Fast PWM 10-bit, prescaler 1) — high enough to be invisible to both the eye and an astrophotography camera at any reasonable flat-frame exposure, while still slow enough to keep a cheap optocoupler in its linear range (the original 62.5 kHz overdrove it).
+
+### Powering the LED strip from USB
+
+The whole panel runs off the Arduino's USB connection, like every commercial astrophotography flat generator. Use a **5 V LED strip** sized so that its full-on current stays inside the USB budget (USB 2.0: 500 mA, USB 3.0: 900 mA) — for typical 60 LED/m strips that means **roughly 1 metre or less at full brightness**.
+
+The strip's `+` is taken from the Arduino's `+5V` pin (exposed on the `VOUT` connector); the strip's `−` returns through the MOSFET module (low-side switching) to GND. No external supply or filtering is required for a flat-frame use case: at 15.6 kHz PWM the residual ripple on the 5 V rail is well below what any astrophotography exposure (≥ 0.1 s) can resolve.
+
+> **Optional refinement.** If you do see visible flicker — typically because you've used a much longer LED strip or a longer/thinner USB cable — adding a **220–470 µF / 10 V electrolytic** in parallel with the strip's input (positive lead to `+5V`, negative to GND, mounted as close to the strip as possible) absorbs the per-cycle current pulse and stabilises the rail. Not necessary in the reference design.
 
 | XY-MOS Pin | Connection              |
 |:----------:|-------------------------|
@@ -36,7 +44,7 @@ The XY-MOS is a complete MOSFET driver module chosen over a bare MOSFET for its 
 | OUT+       | LED strip (+)           |
 | OUT−       | LED strip (−) / GND     |
 
-> Brightness value (0–255) is stored in EEPROM and restored on boot.
+> Brightness always boots at 0 (panel on, light off); the previous value is not persisted.
 
 ---
 
@@ -102,6 +110,6 @@ A **10 µF capacitor** is connected between the RST pin and GND through a **remo
 
 ## Implementation notes
 
-- Timer1 is reconfigured in **Fast PWM 8-bit, no prescaler** mode to run at ~62.5 kHz on pin D9. This is incompatible with `analogWrite()` on that pin after `Alnitak::begin()` is called.
+- Timer1 is reconfigured in **Fast PWM 10-bit, prescaler 1** mode to run at ~15.6 kHz on pin D9 (TOP=0x03FF). The 8-bit Alnitak brightness (0–255) is scaled into the 10-bit OCR1A range, so a brightness of 255 maps to ~99.6 % duty cycle. This is incompatible with `analogWrite()` on that pin after `Alnitak::begin()` is called.
 - All three encoder pins use `INPUT_PULLUP`; no external pull-up resistors are needed.
 - The OLED display is only refreshed when state changes (brightness, on/off, or increment step), reducing CPU load.

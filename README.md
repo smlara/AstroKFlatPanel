@@ -17,7 +17,7 @@ A fully open-source DIY flat panel calibration light for astrophotography, based
 - **Manual brightness control** via rotary encoder (1 % or 10 % steps)
 - **On/Off toggle** via long press on the encoder button
 - **OLED display** (128×32) showing brightness percentage, panel state, and active step
-- **High-frequency PWM** (~62.5 kHz, Timer1) — eliminates flicker visible in long exposures
+- **PWM at ~15.6 kHz** (Timer1, 10-bit Fast PWM) — invisible to the eye and to the camera in flat-frame exposures, with 1024 dimming levels for smooth low-end brightness control
 - **Firmware version 1.1**
 
 ---
@@ -27,8 +27,8 @@ A fully open-source DIY flat panel calibration light for astrophotography, based
 | Component | Description |
 |-----------|-------------|
 | Arduino Nano | ATmega328P microcontroller |
-| LED Strip | LED strip |
-| XY-MOS module | MOSFET driver module with integrated gate driver |
+| LED strip | **5 V** strip, USB-powered (size matched to USB current budget) |
+| XY-MOS module | MOSFET driver module (optocoupler-input MOSFET) |
 | OLED SSD1306 | 128×32 px I2C display |
 | Rotary encoder | EC11 or compatible, with push button |
 
@@ -41,8 +41,8 @@ For full wiring details see [docs/WIRING_EN.md](docs/WIRING_EN.md) and the schem
 | Qty | Component | Specs |
 |:---:|-----------|-------|
 | 1 | Arduino Nano | ATmega328P, USB-C |
-| 1 | XY-MOS module | MOSFET driver with integrated gate driver |
-| 1 | LED strip | 12 V (adapt to your panel size) |
+| 1 | XY-MOS module | MOSFET driver (optocoupler input) |
+| 1 | LED strip | **5 V**, length sized to USB current budget (~300 mA/m for 60 LED/m) |
 | 1 | OLED display | SSD1306, 128×32 px, I2C, 3.3 V |
 | 1 | Rotary encoder | EC11 or compatible, with push button |
 | 1 | Electrolytic capacitor | 10 µF, for ASCOM RST line |
@@ -103,7 +103,6 @@ pio run -e nanoatmega328 -t upload
 - `adafruit/Adafruit SSD1306 ^2.5.9`
 - `adafruit/Adafruit GFX Library ^1.11.9`
 - `Wire`
-- `EEPROM`
 
 ---
 

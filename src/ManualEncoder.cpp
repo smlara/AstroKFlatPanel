@@ -38,34 +38,34 @@ int ManualEncoder::getIncrement() {
 
 int ManualEncoder::getDelta()
 {
-    // --- Lógica del Botón por Polling ---
+    // --- Button polling ---
     bool currentButtonState = digitalRead(_sw);
-    
+
     if (currentButtonState == LOW && !_isPressed) {
-        // Flanco de bajada (empieza pulsación)
-        if (millis() - _lastButtonChangeTime > 50) { // Antirrebote inicial
+        // Falling edge (press starts)
+        if (millis() - _lastButtonChangeTime > 50) { // Initial debounce
             _isPressed = true;
             _buttonPressStartTime = millis();
             _actionTaken = false;
         }
     }
     else if (currentButtonState == LOW && _isPressed) {
-        // Mantenido pulsado: chequear si llevamos > 1 segundo para pulsación larga (encender/apagar)
+        // Held down: check whether we've crossed 1 second for a long press (power on/off).
         if (!_actionTaken && (millis() - _buttonPressStartTime > 1000)) {
             _actionTaken = true;
             _longPressRequested = true;
         }
     }
     else if (currentButtonState == HIGH && _isPressed) {
-        // Flanco de subida (soltado)
+        // Rising edge (released)
         _isPressed = false;
         _lastButtonChangeTime = millis();
-        
-        // Si soltamos antes del 1 segundo (pulsación corta), entonces es cambiar el incremento
+
+        // Released before 1 second: short press -> toggle the increment step.
         if (!_actionTaken) {
-            if (millis() - _buttonPressStartTime > 50) { // Antirrebote mínimo
+            if (millis() - _buttonPressStartTime > 50) { // Minimum debounce
                 _shortPressRequested = true;
-                // Alternar incremento entre 1 y 10 internamente
+                // Toggle the increment between 1 and 10 internally.
                 if (_incrementStep == 1) {
                     _incrementStep = 10;
                 } else {
@@ -76,16 +76,15 @@ int ManualEncoder::getDelta()
         _actionTaken = false;
     }
 
-    // --- Lógica del Encoder por Polling ---
+    // --- Encoder polling ---
     int clkState = digitalRead(_clk);
     int dtState = digitalRead(_dt);
     int delta = 0;
 
-    // Detectar un flanco válido de CLK (cambio de estado)
+    // Detect a valid CLK edge (state change).
     if (clkState != _lastClkState) {
-        // Solo evaluamos el sentido de giro cuando CLK ha cambiado
-        // y CLK es distinto del estado inicial de reposo (por ejemplo LOW).
-        // Evitamos así dobles saltos en cada paso del encoder.
+        // Only evaluate direction when CLK changes and is different from the
+        // idle state (LOW). This avoids double-counting each detent.
         if (clkState == LOW) {
             if (dtState != clkState) {
                 delta = _incrementStep;
@@ -94,7 +93,7 @@ int ManualEncoder::getDelta()
             }
         }
     }
-    
+
     _lastClkState = clkState;
 
     return delta;

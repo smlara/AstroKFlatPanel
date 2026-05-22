@@ -5,37 +5,37 @@
 
 /*
  * ==========================================
- * RESUMEN DE CONEXIONES (Pines del Arduino)
+ * WIRING SUMMARY (Arduino pins)
  * ==========================================
- * - PANEL LED (MOSFET):  Pin D9 (PWM)
- * 
- * - PANTALLA OLED (I2C):
+ * - LED PANEL (MOSFET):    Pin D9 (PWM)
+ *
+ * - OLED DISPLAY (I2C):
  *   - GND(1):               Pin GND
  *   - VCC(2):               Pin 3V3
  *   - SCL(3):               Pin A5
  *   - SDA(4):               Pin A4
- * 
- * - ENCODER ROTATORIO:
+ *
+ * - ROTARY ENCODER:
  *   - GND(1):               Pin GND
  *   - VCC(2):               Pin 3V3
- *   - SW(3) (Botón):        Pin D4 
+ *   - SW(3) (Button):       Pin D4
  *   - DT(4):                Pin D3
  *   - CLK(5):               Pin D2
  * ==========================================
  */
 /*
  * ==========================================
- * Pinout  MOSFET HW 517
- *==========================================
- *   - Pin PWM : Pin 9 (PWM)
+ * MOSFET HW-517 pinout
+ * ==========================================
+ *   - PWM pin: D9 (PWM)
  *
  */
 
-Alnitak alnitak(MOSFET_PIN); // Debe ser el 9 para poder manejar el pwm como dios manda
-ManualEncoder encoder; // Usa los pines por defecto definidos en el .h (2, 3, 4)
+Alnitak alnitak(MOSFET_PIN); // Must be D9 to drive the PWM properly
+ManualEncoder encoder;       // Uses the default pins defined in the .h (2, 3, 4)
 ExternalDisplay display;
 
-// Variables para controlar cuándo actualizar la pantalla sin bloquear
+// Variables to control when to refresh the display without blocking
 int lastBrightness = -1;
 bool lastIsOn = false;
 int lastIncrement = -1;
@@ -43,54 +43,54 @@ unsigned long lastDisplayUpdate = 0;
 
 void setup() {
     Serial.begin(9600);
-    
-    // Inicializar componentes
+
+    // Initialise components
     alnitak.begin();
-    
-    // Forzar brillo inicial a 0 y panel encendido
+
+    // Force initial brightness to 0 and panel on
     alnitak.setBrightness(0);
     alnitak.turnOn();
-    
+
     encoder.begin();
     display.begin();
 
-    // Mensaje de bienvenida inicial en el display (5 segundos con la versión)
+    // Initial welcome message on the display (5 seconds with version info)
     String version = "";
 #ifdef FW_VERSION
     version = FW_VERSION;
 #endif
-    display.mostrarBienvenida("ASTROKFLAT", version);
+    display.showWelcome("ASTROKFLAT", version);
     delay(5000);
-    
-    // Forzamos actualización inicial
-    display.actualizar(alnitak.getBrightness(), encoder.getIncrement(), alnitak.isOn());
+
+    // Force initial refresh
+    display.update(alnitak.getBrightness(), encoder.getIncrement(), alnitak.isOn());
 }
 
 void loop() {
-    // 1. Procesar comunicación serie (Alnitak Protocol)
+    // 1. Serial communication (Alnitak protocol)
     alnitak.process();
 
-    // 2. Procesar el estado del Encoder
+    // 2. Encoder rotation
     int delta = encoder.getDelta();
-    
+
     if (delta != 0) {
-        // Obtenemos el porcentaje actual (0 a 100)
+        // Current percentage (0 to 100)
         int currentPct = round((alnitak.getBrightness() / 255.0) * 100.0);
-        
-        // El delta del encoder ahora lo tratamos como incremento de porcentaje (1% o 10%)
+
+        // The encoder delta is treated as a percentage increment (1% or 10%)
         int newPct = currentPct + delta;
-        
-        // Limitar entre 0 y 100
+
+        // Clamp between 0 and 100
         if (newPct < 0) newPct = 0;
         if (newPct > 100) newPct = 100;
-        
-        // Convertir de vuelta a rango 0-255 para el driver
+
+        // Convert back to 0-255 range for the driver
         int newBrightness = round((newPct / 100.0) * 255.0);
-        
+
         alnitak.setBrightness(newBrightness);
     }
 
-    // 3. Procesar pulsación del Botón del Encoder
+    // 3. Encoder button
     if (encoder.checkLongPress()) {
         if (alnitak.isOn()) {
             alnitak.turnOff();
@@ -98,18 +98,18 @@ void loop() {
             alnitak.turnOn();
         }
     } else if (encoder.checkShortPress()) {
-        // La clase ManualEncoder ya ha alternado el incremento internamente (1 <-> 10) al hacer clic corto.
+        // ManualEncoder already toggled the increment internally (1 <-> 10) on the short click.
     }
 
-    // 4. Actualizar pantalla solo si ha habido cambios en el estado
+    // 4. Refresh the display only when state has changed
     int currentBrightness = alnitak.getBrightness();
     bool currentIsOn = alnitak.isOn();
     int currentIncrement = encoder.getIncrement();
 
     if (currentBrightness != lastBrightness || currentIsOn != lastIsOn || currentIncrement != lastIncrement) {
-        // Mostrar siempre el valor real de brillo, y usar currentIsOn para mostrar OFF o el porcentaje
-        display.actualizar(currentBrightness, currentIncrement, currentIsOn);
-        
+        // Always pass the real brightness value; currentIsOn decides whether OFF or the percentage is shown.
+        display.update(currentBrightness, currentIncrement, currentIsOn);
+
         lastBrightness = currentBrightness;
         lastIsOn = currentIsOn;
         lastIncrement = currentIncrement;

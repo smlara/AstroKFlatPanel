@@ -13,7 +13,7 @@
 | D2          | CLK         | Encoder rotatorio       | INPUT_PULLUP, detección por polling |
 | D3          | DT          | Encoder rotatorio       | INPUT_PULLUP                       |
 | D4          | SW (botón)  | Encoder rotatorio       | INPUT_PULLUP, antirrebote software  |
-| D9          | Señal PWM   | Módulo XY-MOS (tira de LED) | PWM ~62.5 kHz via Timer1 (OC1A)  |
+| D9          | Señal PWM   | Módulo XY-MOS (tira de LED) | PWM ~15.6 kHz via Timer1 (OC1A)  |
 | A4 (SDA)    | SDA         | OLED SSD1306 (I2C)      | Bus I2C                            |
 | A5 (SCL)    | SCL         | OLED SSD1306 (I2C)      | Bus I2C                            |
 | 3V3         | VCC         | OLED + Encoder          | Alimentación 3.3 V                 |
@@ -26,7 +26,15 @@
 
 ### 1. Panel LED — Módulo XY-MOS
 
-El XY-MOS es un módulo driver MOSFET completo, elegido frente a un MOSFET convencional por su circuito driver de gate integrado. Esto garantiza transiciones de conmutación rápidas y limpias a la alta frecuencia de PWM (~62.5 kHz, Timer1) utilizada por el firmware, minimizando la disipación de calor y proporcionando una regulación suave y lineal en todo el rango 0–100 % sin necesidad de resistencias de gate externas ni componentes de protección adicionales.
+El XY-MOS es un módulo driver MOSFET, elegido frente a un MOSFET convencional por su circuito de conmutación integrado. Muchos de estos módulos usan un optoacoplador en la entrada, así que el firmware genera el PWM a **~15.6 kHz** (Timer1, Fast PWM 10-bit, prescaler 1) — lo bastante alto para ser invisible al ojo y a la cámara en cualquier exposición razonable de flat, y lo bastante bajo para mantener al optoacoplador en su rango lineal (los 62.5 kHz originales lo saturaban).
+
+### Alimentación de la tira por USB
+
+El panel completo funciona desde el USB del Arduino, como todos los generadores de flats comerciales para astrofotografía. Usa una **tira LED de 5 V** dimensionada para que su consumo a brillo máximo quepa dentro del presupuesto USB (USB 2.0: 500 mA, USB 3.0: 900 mA) — para tiras típicas de 60 LED/m eso significa **aproximadamente 1 metro o menos a full**.
+
+El `+` de la tira se toma del pin `+5V` del Arduino (expuesto en el conector `VOUT`); el `−` vuelve por el módulo MOSFET (conmutación low-side) a GND. Para uso como flat panel no hace falta ninguna fuente ni filtrado adicional: a 15.6 kHz de PWM el ripple residual del rail de 5 V queda muy por debajo de lo que cualquier exposición de astrofotografía (≥ 0.1 s) puede resolver.
+
+> **Refinamiento opcional.** Si llegas a ver flicker visible — típicamente porque has usado una tira mucho más larga o un cable USB más largo/fino — añadir un electrolítico **220–470 µF / 10 V** en paralelo a la entrada de la tira (positivo a `+5V`, negativo a GND, montado lo más cerca posible de la tira) absorbe el pulso de corriente de cada ciclo y estabiliza el rail. En el diseño de referencia no es necesario.
 
 | Pin XY-MOS  | Conexión                       |
 |:-----------:|--------------------------------|
@@ -36,7 +44,7 @@ El XY-MOS es un módulo driver MOSFET completo, elegido frente a un MOSFET conve
 | OUT+        | Panel LED (+)                  |
 | OUT−        | Panel LED (−) / GND            |
 
-> El brillo (0–255) se persiste en EEPROM y se recupera al arrancar.
+> El brillo arranca siempre en 0 (panel encendido, luz apagada); el valor anterior no se persiste.
 
 ---
 
@@ -102,6 +110,6 @@ Un **condensador de 10 µF** está conectado entre el pin RST y GND mediante un 
 
 ## Notas de implementación
 
-- El Timer1 se reconfigura en modo **Fast PWM 8-bit sin prescaler** para operar a ~62.5 kHz en el pin D9. Esto es incompatible con `analogWrite()` en ese pin tras llamar a `Alnitak::begin()`.
+- El Timer1 se reconfigura en modo **Fast PWM 10-bit, prescaler 1** para operar a ~15.6 kHz en el pin D9 (TOP=0x03FF). El brillo Alnitak de 8 bits (0–255) se escala al rango de 10 bits de OCR1A, así que un brillo de 255 corresponde a ~99.6 % de ciclo de trabajo. Esto es incompatible con `analogWrite()` en ese pin tras llamar a `Alnitak::begin()`.
 - Los tres pines del encoder usan `INPUT_PULLUP`; no se necesitan resistencias externas.
 - La pantalla OLED solo se actualiza cuando cambia el estado (brillo, on/off o incremento), reduciendo la carga de CPU.

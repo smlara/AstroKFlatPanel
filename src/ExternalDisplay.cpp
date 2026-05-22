@@ -5,10 +5,10 @@ ExternalDisplay::ExternalDisplay()
 
 void ExternalDisplay::begin()
 {
-    // Intentamos inicializar. Si no responde en la dirección 0x3C, begin() devuelve false.
+    // Try to initialise. If nothing responds at 0x3C, begin() returns false.
     if (!display.begin(SSD1306_SWITCHCAPVCC, 0x3C))
     {
-        Serial.println(F("OLED no encontrado. Continuando sin pantalla..."));
+        Serial.println(F("OLED not found. Continuing without display..."));
         _enabled = false;
         return;
     }
@@ -20,31 +20,31 @@ void ExternalDisplay::begin()
     display.display();
 }
 
-void ExternalDisplay::actualizar(int brightness, int increment, bool isOn)
+void ExternalDisplay::update(int brightness, int increment, bool isOn)
 {
     if (!_enabled)
         return;
-        
+
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
 
-    // Valor principal en % (0-100%)
-    float porcentaje = (brightness / 255.0) * 100.0;
+    // Main value as % (0-100%)
+    float percentage = (brightness / 255.0) * 100.0;
 
-    display.setCursor(10, 4); // Centrado verticalmente (32-24)/2 = 4
-    display.setTextSize(3);   // Tamaño 3 (24px de alto) para que sea bien visible
-    
+    display.setCursor(10, 4); // Vertically centred: (32-24)/2 = 4
+    display.setTextSize(3);   // Size 3 (24 px tall) for high visibility
+
     if (!isOn) {
         display.print(F("OFF"));
     } else {
-        display.print((int)porcentaje);
+        display.print((int)percentage);
         display.setTextSize(2);
         display.print(F("%"));
     }
 
-    // Mostrar el incremento (x1 o x10) en la esquina inferior derecha
+    // Show the increment (x1 or x10) in the bottom-right corner
     display.setTextSize(1);
-    display.setCursor(94, 24); // Corner inferior derecha, ajustado para [x10]
+    display.setCursor(94, 24); // Bottom-right, tuned for [x10]
     display.print(F("[x"));
     display.print(increment);
     display.print(F("]"));
@@ -53,24 +53,23 @@ void ExternalDisplay::actualizar(int brightness, int increment, bool isOn)
 }
 
 
-void ExternalDisplay::mostrarBienvenida(String title, String version)
+void ExternalDisplay::showWelcome(String title, String version)
 {
     if (!_enabled)
         return;
 
     display.clearDisplay();
     display.setTextColor(SSD1306_WHITE);
-    
-    // Título en grande (tamaño 2)
+
+    // Title in large font (size 2)
     display.setTextSize(2);
     display.setCursor(0, 0);
     display.println(title);
-    
-    // Versión en pequeño (tamaño 1)
+
+    // Version in small font (size 1)
     display.setTextSize(1);
-   // display.setCursor(0, 20); 
     display.print(F("v"));
     display.print(version);
-    
+
     display.display();
 }

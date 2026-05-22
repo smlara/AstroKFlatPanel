@@ -15,8 +15,8 @@ class ExternalDisplay
 public:
     ExternalDisplay();
     void begin();
-    void actualizar(int brightness, int increment, bool isOn);
-    void mostrarBienvenida(String title, String version);
+    void update(int brightness, int increment, bool isOn);
+    void showWelcome(String title, String version);
 
 private:
     Adafruit_SSD1306 display;

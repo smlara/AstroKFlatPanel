@@ -1,8 +1,4 @@
 #include "Alnitak.h"
-#include <EEPROM.h>
-
-// Dirección de memoria EEPROM para el brillo
-const int EEPROM_ADDRESS = 0;
 
 Alnitak::Alnitak(uint8_t pin) : _pin(pin), _brightness(0), _isOn(false)
 {
@@ -12,35 +8,40 @@ Alnitak::Alnitak(uint8_t pin) : _pin(pin), _brightness(0), _isOn(false)
 void Alnitak::begin() {
     digitalWrite(_pin, LOW);
     pinMode(_pin, OUTPUT);
-    
-    // Configuración Alta Frecuencia fija para Pin 9 (Timer 1)
-    // Fast PWM, 8-bit, No prescaling (62.5 kHz)
-    TCCR1A = _BV(COM1A1) | _BV(WGM10);
+
+    // Timer 1 configuration for pin D9.
+    // Fast PWM, 10-bit (mode 7, TOP=0x03FF), prescaler 1 -> ~15.625 kHz.
+    // Above the stroboscopic perception threshold of the eye and high
+    // enough to be invisible to a camera at any reasonable flat-frame
+    // exposure (>= 1 ms = ~16 PWM cycles), while still slow enough to
+    // keep the optocoupler on the XY-MOS driver module in a linear
+    // operating range. Brightness (0-255, 8-bit) is scaled into the
+    // 10-bit OCR1A range in updatePWM().
+    TCCR1A = _BV(COM1A1) | _BV(WGM11) | _BV(WGM10);
     TCCR1B = _BV(WGM12) | _BV(CS10);
-    
-    loadBrightness();
+
     updatePWM();
 }
 
 void Alnitak::process()
 {
-    // Solo procesamos si hay al menos 2 bytes (un comando mínimo como >S\n)
-    if (Serial.available() > 0) 
+    // Only proceed if at least 2 bytes are available (minimum command, e.g. >S\n)
+    if (Serial.available() > 0)
     {
-        // Leer hasta encontrar el final de línea
+        // Read until the end-of-line character
         String inputStr = Serial.readStringUntil('\n');
-        
-        // El protocolo espera que el comando empiece por '>'
+
+        // The protocol expects commands to start with '>'
         if (inputStr.length() >= 2 && inputStr.charAt(0) == '>') {
-            // Convertimos el String a un array de caracteres para nuestra función
-            // inputStr.charAt(1) es la letra del comando (S, P, L, B...)
-            // inputStr.substring(2) son los datos (si los hay)
-            
+            // Convert the String into a char array for processCommand().
+            // inputStr.charAt(1) is the command letter (S, P, L, B, ...)
+            // inputStr.substring(2) holds the data (if any)
+
             char cmd = inputStr.charAt(1);
             String dataStr = inputStr.substring(2);
             char data[16];
             dataStr.toCharArray(data, sizeof(data));
-            
+
             processCommand(&cmd, data);
         }
     }
@@ -84,9 +85,8 @@ void Alnitak::processCommand(char* cmd, char* data)
         if (val >= 0 && val <= 255)
         {
             _brightness = val;
-            saveBrightness();
         }
-        // Siempre actualizamos el PWM y respondemos
+        // Always refresh PWM and respond
         updatePWM();
         {
             char temp[16];
@@ -106,37 +106,26 @@ void Alnitak::processCommand(char* cmd, char* data)
 
 void Alnitak::sendStatus()
 {
-    // Formato: *SidMLC\n
+    // Format: *SidMLC\n
     // id = 19 (FLAT_MAN)
     // M = motor status (0 stopped)
     // L = light status (0 off, 1 on)
-    // C = Cover status (0)
+    // C = cover status (0)
     char statusStr[16];
     sprintf(statusStr, "*S190%d0\n", _isOn ? 1 : 0);
     Serial.print(statusStr);
 }
 
 void Alnitak::updatePWM() {
-    // Si la luz está apagada, forzamos el registro a 0 absoluto.
-    // Si está encendida, cargamos el valor de brillo.
+    // When off, force the register to absolute zero.
+    // When on, scale the 8-bit brightness (0-255) into the 10-bit
+    // OCR1A range (0-1023). brightness=255 maps to 1020 (~99.6% duty),
+    // which is indistinguishable from full-on for the panel.
     if (!_isOn) {
         OCR1A = 0;
     } else {
-        OCR1A = _brightness;
+        OCR1A = (uint16_t)_brightness << 2;
     }
-}
-
-void Alnitak::saveBrightness()
-{
-    if (EEPROM.read(EEPROM_ADDRESS) != _brightness)
-    {
-        EEPROM.write(EEPROM_ADDRESS, _brightness);
-    }
-}
-
-void Alnitak::loadBrightness()
-{
-    _brightness = EEPROM.read(EEPROM_ADDRESS);
 }
 
 int Alnitak::getBrightness() {
@@ -146,10 +135,9 @@ int Alnitak::getBrightness() {
 void Alnitak::setBrightness(int val) {
     if (val < 0) val = 0;
     if (val > 255) val = 255;
-    
+
     if (_brightness != val) {
         _brightness = val;
-        saveBrightness();
         if (_isOn) {
             updatePWM();
         }
