@@ -15,7 +15,7 @@ void ExternalDisplay::begin()
 
     _enabled = true;
     display.clearDisplay();
-    display.setRotation(2); // Rotate 180 degrees
+    display.setRotation(0); // Normal orientation (no rotation)
     display.setTextColor(SSD1306_WHITE);
     display.display();
 }
